@@ -2,3 +2,4 @@ numbers[::-1] yields [5,4,3,2,1], because the -1 displays the list from last to 
 
 numbers[4:2:-1] yields [5,4], because the slice indicates elements from index 4 to index 2 in the list, meaning '5' at index 4 and '4' at index 3,
 the number at index 2 is not included. Then the specified elements are displayed in reverse order. This yields [5,4]
+numbers[4:2] would not work without the -1 to reverse.
