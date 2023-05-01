@@ -5,7 +5,7 @@ def count_letter(some_str):
         letter_dict = {} # create the dict
         # get rid of whitespaces in entered string, we do not want to add them to the dict
         some_str = some_str.replace(" ", "")
-        # also remove all special characters from the string
+        # also remove all special characters from the string + remove integers
         # I do this by calling my own function
         some_str = remove_specials(some_str)
         # make all letters lowercase 
