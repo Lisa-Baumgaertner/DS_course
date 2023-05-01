@@ -31,7 +31,7 @@ def count_letter(some_str):
     
 
 def remove_specials(in_str):
-    special_list = [',', '.', '?', '!', '"', "'", '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    special_list = [',', '.', '?', '!', '"', "'", '-', '_', ';', '+', '#', '*', ')', '(', '[', ']', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
     new_string = ""
     for c in in_str:
         if c in special_list:
