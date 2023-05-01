@@ -1,3 +1,7 @@
+# this is a self-written function that takes a string as input and returns a dictionairy with characters as keys and count as value
+# special characters and integers are removed with my own function called remove_specials
+# @param some_str: input parameter, has to be str else error
+# @return letter_dict: dictionairy containing unique characters as keys and their respective count as values
 def count_letter(some_str):
     
     if isinstance(some_str, str) == True:
