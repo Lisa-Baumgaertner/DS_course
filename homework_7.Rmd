@@ -1,0 +1,209 @@
+---
+title: "Homework_7"
+output: html_document
+date: "2023-06-05"
+---
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(datarium)
+library(ggpubr)
+library(ggplot2)
+
+```
+
+```{r}
+# read in the data patient info
+patient_data <- "https://raw.githubusercontent.com/WHPAN0108/BHT-DataScience-S23/main/data_clean/data/patient_info.csv"
+df_patient <- read.csv(patient_data)
+
+print(df_patient)
+
+# read in data hospital visit
+hospital_data <- "https://raw.githubusercontent.com/WHPAN0108/BHT-DataScience-S23/main/data_clean/data/date.csv"
+df_hospital <- read.csv(hospital_data)
+print(df_hospital)
+
+```
+
+## Data Cleaning
+## Exercise 1: Missing values from BMI can be replaced with mean value of its regarding gender
+## For females add 29.06814 and for males add 29.08796
+```{r}
+data1 <- df_patient                                             # Duplicate data frame
+data1$BMI[is.na(data1$BMI)] <- mean(data1$BMI, na.rm = TRUE) 
+#print(data1)
+
+# df copy to calculate mean male and mean female for bmi without na values
+df_temp <- na.omit(df_patient)
+#print(df_temp)
+
+
+female_bmi_mean <- mean(df_temp[df_temp$Sex=='Female',5])
+print(female_bmi_mean)
+
+male_bmi_mean <- mean(df_temp[df_temp$Sex=='Male', 5])
+print(male_bmi_mean)
+
+
+# replace na values
+df_patient <- df_patient %>% group_by(Sex=='Female')  %>% replace_na(list(BMI = female_bmi_mean ))
+df_patient <- df_patient %>% group_by(Sex=='Male')  %>% replace_na(list(BMI = male_bmi_mean ))
+df_patient <- df_patient[-c(7:8)]
+
+#print(df_patient)
+#print(sum(is.na(df_patient$BMI))) # make sure no na left
+
+```
+## Exercise 2: Do the sanity check for all the columns in 2 files, and remove the sample which does not pass the sanity check
+```{r}
+# sanity check for Patient_information 
+# 1. column Participant_ID should be named Patient_ID
+names(df_patient)[names(df_patient) == "Participant_ID"] <- "Patient_ID"
+
+# 2. BMI column should appear before Smoking_status column
+columns_order <- c("Patient_ID", "Sex", "Age",
+               "BMI", "Smoking_status", "Disease")
+df_patient <- df_patient[, columns_order]
+
+#check if BMI is between 15-60
+
+df_patient %>%
+        filter(BMI >= 15 | BMI <= 60)
+
+
+
+# 3. are labels in Smoking_status consistent (never, previous, current, Prefer not to answer)?
+unique(df_patient$Smoking_status)
+# output matches what we expect
+
+# 4. check data types of columns -> Disease column should be of data type factor but is int
+# check data types
+sapply(df_patient, class) # we can see which columns do not match data types we want based on task description
+# Patient_ID should be numeric
+class(df_patient$Patient_ID) #-> it is integer, we want numeric
+df_patient$Patient_ID = as.numeric(df_patient$Patient_ID)
+
+
+# Age should be numeric
+df_patient$Age = as.numeric(df_patient$Age)
+# BMI should be numeric
+df_patient$BMI = as.numeric(df_patient$BMI)
+
+
+# Disease should be factor
+df_patient$Disease = as.factor(df_patient$Disease)
+sapply(df_patient, class)
+# sanity check for Hospital Visit
+# 1. column Participant_ID should be named Patient_ID
+names(df_hospital)[names(df_hospital) == "Participant_ID"] <- "Patient_ID"
+
+
+
+```
+
+## Exercise 3: Calculate the number of visits of each patient, if the VisitDate is missing, means they don't visit the hospital during that period
+```{r}
+#print(df_hospital)
+# we do not want NA values, NA means no hospital visit, so we remove all rows with NA values
+df_hospital[df_hospital==""]<-NA #setting empty values to NA so we can use na.omit function
+na.omit(df_hospital)
+
+df_hospital <- df_hospital %>% group_by(Patient_ID) %>% mutate(Number_of_visit = n())
+df_hospital <- select(df_hospital, -c("VisitDate" )) # drop VisitDate column
+df_hospital <- df_hospital %>% distinct(Patient_ID, .keep_all = TRUE) # make distinct so we do not have duplicate user ids
+
+print(df_hospital)
+#print(df_patient)
+
+```
+## Exercise 4: Merge two files with columns: Patient_ID, Sex, Age, BMI, Smoking_status, Number_of_visit, Disease
+```{r}
+# merge the named columns into a new dataframe
+df_merged <- merge(df_patient, df_hospital, by = "Patient_ID") %>%
+  select(contains(c('Patient_ID', 'Sex','Age','BMI', 'Smoking_status', 'Number_of_visit', 'Disease')))
+df_merged <- df_merged %>% distinct(Patient_ID, .keep_all = TRUE)
+print(df_merged)
+
+```
+## Task 2
+## Exercise 1: Is the BMI different between the healthy and control group? make the box/violin chart
+## We can see that we have a BMI mean of 28.80958 for the group with disease, and a mean of 29.20888 for the healthy group. So we can see that the mean BMIs of the different groups are slightly different. 
+## High BMIs seem to be balanced out by lower values in each group
+```{r}
+# df_merged %>%
+#   group_by(Disease) %>%
+#   get_summary_stats(BMI, type = "mean_sd")
+#res <- t.test(df_merged$BMI ~ df_merged$Disease, data = df_merged)
+t.test( BMI  ~  Disease, data = df_merged)
+res = df_merged %>% 
+                           group_by(Disease) %>% 
+                           summarise(
+                             mean = mean (BMI), 
+                             sd = sd (BMI),  
+                             n = n ()
+                         )
+summary(res)
+
+ggplot(df_merged,aes(x=Disease,y=BMI,col=Disease))+geom_boxplot()
+########### TO DO -> diff values now
+
+```
+
+## Exercise 2: Is the proportion of Smoke status different between the healthy and control group?
+## run chisquare test to see how smoke status behaves between the groups
+## We can obeserve a p-value of 0.3478, therefore we can estimate, that the observed proportions between smoke status and disease are not signif. different from the expected proportions.
+```{r}
+chisq <- chisq.test(x=df_merged$Smoking_status, y=df_merged$Disease)
+chisq
+
+chisq$observed
+
+
+```
+
+
+## Exercise 3: Is the smoke status related to the number of Hospital visits regardless of the disease? (ignore the "Prefer not to answer")
+## perform anova with number of visits and the smoking status, where status prefer not to answer is removed 
+## low f value, not really a stat. significant difference in the means
+```{r}
+removed_prefer_not_to_answer <- df_merged[df_merged$Smoking_status != 'Prefer not to answer', ] 
+print(removed_prefer_not_to_answer)
+res_aov <- aov(Number_of_visit ~ Smoking_status    ,
+  data = removed_prefer_not_to_answer
+)
+summary(res_aov)
+plot(res_aov)
+#par(mfrow = c(1, 2)) # combine plots
+
+# histogram
+#hist(res_aov)
+
+# QQ-plot
+
+# qqPlot(res_aov$residuals,
+#   id = FALSE # id = FALSE to remove point identification
+#)
+
+```
+
+## Exercise 4: Is the number of visits higher in the Disease group than in the Healthy group?
+## we get a p value of 0.9315, so we can interpret that the number of visits is not statistically significantlly higher in one group or the other.
+```{r}
+
+t.test( Number_of_visit ~ Disease , var.equal=TRUE, data=df_merged) 
+```
+
+## Exercise 5: Do Male has a higher current smoke percentage compared to Female?
+## perform chisquare test, want to see observed and expected
+## the p-value is very low, so we migth interpret this as males and current smoking having a relation
+```{r}
+chisqtwo <- chisq.test(x=df_merged$Sex, y=df_merged$Smoking_status)
+chisqtwo
+
+chisqtwo$observed
+
+chisqtwo$expected
+
+```
+
